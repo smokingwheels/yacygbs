@@ -1,11 +1,11 @@
 Echo starting Java 11 install
 
-cd c:\yacygbs\RELEASEJAVA
+cd c:\YaCy\RELEASEJAVA
 copy /b winjava0 + winjava1 + winjava2 java11.exe
 timeout 5
 
 Echo click yes to command window 
-cd c:\yacygbs\RELEASEJAVA
+cd c:\YaCy\RELEASEJAVA
 start /w java11.exe /qn
 pause
 cd ..

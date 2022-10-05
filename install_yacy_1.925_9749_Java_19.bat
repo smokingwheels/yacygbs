@@ -1,11 +1,11 @@
 Echo starting Java 19 install
 
-cd c:\yacygbs\RELEASEJAVA
+cd c:\YaCy\RELEASEJAVA
 copy /b winjava19_0 + winjava19_1 + winjava19_2 java19.exe
 timeout 5
 
 Echo click yes to command window 
-cd c:\yacygbs\RELEASEJAVA
+cd c:\YaCy\RELEASEJAVA
 start /w java19.exe /qn
 pause
 cd ..

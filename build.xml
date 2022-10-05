@@ -90,9 +90,28 @@
     <property name="target-resolve-already-run" value="true" />
   </target>
 
-  <!-- initializing all needed variables -->
+   <!-- initializing all needed variables -->
   <target name="init">
     <loadproperties srcFile="build.properties" />
+
+    <exec executable="git" outputproperty="repository.revision.date">
+        <arg value="log"/>
+        <arg value="-1"/>
+        <arg value="--pretty=format:%ad" />
+        <arg value="--date=format:%Y%m%d" />
+    </exec>
+    <exec executable="git" outputproperty="repository.revision.time">
+        <arg value="log"/>
+        <arg value="-1"/>
+        <arg value="--pretty=format:%ad" />
+        <arg value="--date=format:%H%m" />
+    </exec>
+    <exec executable="git" outputproperty="repository.revision.hash">
+        <arg value="log"/>
+        <arg value="-1"/>
+        <arg value="--pretty=format:%h" />
+    </exec>
+
     <mkdir dir="${data}"/>
     <mkdir dir="${release}"/>
 
@@ -100,16 +119,29 @@
     <echo message="YaCy Version number: ${releaseVersion}" />
     <filter token="REPL_VERSION" value="${releaseVersion}" />
 
-    <!-- YaCy Release <revision number -->
-    <echo message="YaCy Release number: ${releaseNr}" />
-    <filter token="REPL_REVISION_NR" value="${releaseNr}"/>
+    <!-- GIT Release revision number -->
+    <echo message="GIT Release Date: ${repository.revision.date}" />
+    <echo message="GIT Release Time: ${repository.revision.time}" />
+    <echo message="GIT Release Hash: ${repository.revision.hash}" />
+    <filter token="REPL_REPVERDATE" value="${repository.revision.date}"/>
+    <filter token="REPL_REPVERTIME" value="${repository.revision.time}"/>
+    <filter token="REPL_REPVERHASH" value="${repository.revision.hash}"/>
+
+  	<!-- set time stamp: DSTAMP should have the format yyyyMMdd, TSTAMP hhmm -->
+  	<tstamp/>
+    <filter token="REPL_DSTAMP" value="${DSTAMP}"/>
+    <filter token="REPL_TSTAMP" value="${TSTAMP}"/>
+  	
+    <!-- release file names -->
+    <property name="stdReleaseStub" value="yacy_v${releaseVersion}_${repository.revision.date}${repository.revision.time}_${repository.revision.hash}"/>
+    <property name="stdReleaseFile" value="${stdReleaseStub}.tar.gz"/>
+    <filter token="REPL_RELEASESTUB" value="${stdReleaseStub}"/>
 
     <!-- apply replacments -->
-    <copy file="${src}/net/yacy/peers/operation/yacyBuildProperties.java.template" tofile="${src}/net/yacy/peers/operation/yacyBuildProperties.java" overwrite="true" filtering="true" />
-    
-    <!-- copy log4j config file -->
-    <copy file="${src}/log4j.properties" tofile="${build}/log4j.properties" overwrite="true" filtering="false" /> <!-- @TODO: obsolete, contains no replace/filter pattern -->
+    <copy file="${defaults}/yacyBuild.properties.template" tofile="${defaults}/yacyBuild.properties" overwrite="true" filtering="true" />
 
+    <!-- prepare target -->
+    <mkdir dir="${build}"/>
   </target>
 
   <target name="javadoc" depends="init" description="make javadoc for YaCy core">
@@ -142,6 +174,7 @@
            source="${javacSource}" target="${javacTarget}" encoding="UTF-8">
       <classpath refid="project.class.path" />
       <compilerarg value="-Xlint"/>
+      <compilerarg value="-nowarn"/>
     </javac>
 
     <!-- prepare classpath for MANIFEST (manifest cp is relative to jar) -->
@@ -165,18 +198,7 @@
 
   </target>
 
-  <target name="compile-htroot" depends="init,resolve" description="compile YaCy servlets">
-    <!-- compile htroot, htroot/yacy and htroot/htdocsdefault -->
-    <javac srcdir="${htroot}/"
-           excludes="processing/**"
-           source="${javacSource}" target="${javacTarget}"
-           debug="true" debuglevel="lines,vars,source" includeantruntime="false" encoding="UTF-8">
-      <classpath refid="project.class.path" />
-      <compilerarg value="-Xlint"/>
-    </javac>
-  </target>
-  
-  <target name="compile" depends="compile-core, compile-htroot" description="compile YaCy core and YaCy servlets" />
+  <target name="compile" depends="compile-core" description="compile YaCy core and YaCy servlets" />
 
   <target name="all" depends="compile">
   </target>
@@ -309,7 +331,6 @@
            source="${javacSource}" target="${javacTarget}" encoding="UTF-8">
       <classpath>
         <pathelement location="${build}"/>
-        <pathelement location="${htroot}"/>
         <path refid="compile.path"/>
         <path refid="test.path"/>
       </classpath>
@@ -328,7 +349,6 @@
       <classpath>
         <pathelement location="${test}"/>
         <pathelement location="${build}"/>
-        <pathelement location="${htroot}"/>
     <fileset dir="${libt}" includes="**/*.jar" />
         <fileset dir="${lib}" includes="**/*.jar" />
       </classpath>
@@ -379,12 +399,10 @@
   <!-- make clean -->
   <target name="clean" description="make clean">
     <delete dir="${release_main}" failonerror="false"/>
-    <delete file="${build}/log4j.properties" failonerror="false"/>
     <delete file="${lib}/yacycore.jar" failonerror="false"/>
     <delete failonerror="false">
       <fileset dir="${src}" includes="**/*.class" />
       <fileset dir="${build}" includes="**/*.class" />
-      <fileset dir="${htroot}" includes="**/*.class" />
       <fileset dir="test/" includes="**/*.class" />
       <fileset dir="." includes="TEST-*" />
     </delete>
@@ -449,7 +467,6 @@
     <java classname="net.yacy.yacy" fork="yes">
       <classpath>
         <pathelement location="${build}"/>
-        <pathelement location="${htroot}"/>
         <pathelement location="${lib}" />
         <fileset dir="${lib}" includes="**/*.jar" />
       </classpath>
@@ -499,9 +516,6 @@
       <fileset dir="source" defaultexcludes="yes">
         <include name="**/*.java" />
       </fileset>
-      <fileset dir="htroot" defaultexcludes="yes">
-        <include name="**/*.java" />
-      </fileset>
     </javadoc>
   </target>
 
@@ -514,8 +528,8 @@
       <arg value="-NOCD" />
       <arg value="${release_windows}/build.nsi" />
     </exec>
-    <move file="${release_windows}/yacy_v${releaseVersion}_${releaseNr}.exe"
-          tofile="${release}/yacy_v${releaseVersion}_${releaseNr}.exe" />
+    <move file="${release_windows}/${stdReleaseStub}.exe"
+          tofile="${release}/${stdReleaseStub}.exe" />
 
     <delete dir="${release_main}"/>
     <delete dir="${release_windows}" failonerror="false" />
@@ -531,7 +545,7 @@
       <chmod file="${release_mac}/YaCy.app/Contents/MacOS/startYACYMacOS.sh" perm="755"/>
       <chmod file="${release_mac}/YaCy.app/Contents/MacOS/startYACY.sh" perm="755"/>
       <exec executable="hdiutil">
-            <arg line="create -srcfolder ${release_mac}/YaCy.app ${release}/yacy_v${releaseVersion}_${releaseNr}.dmg"/>
+            <arg line="create -srcfolder ${release_mac}/YaCy.app ${release}/${stdReleaseStub}.dmg"/>
       </exec>
       <delete dir="${release_mac}" failonerror="false" verbose="false" />
   </target>
